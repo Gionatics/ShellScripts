@@ -1,0 +1,74 @@
+#### Setup is for ubuntu / linux based MySQL Instance
+### Pre-requisites
+  a) same user created for both Primary and DR Instance
+  b) backup and restore scripts (reference for mysql_db_backup.sh and mysql_db_restore.sh scripts for easier work
+
+#### NOTE: Applying configuration is being done on both Primary and DR server
+
+# Run the following commands to navigate to MySQL configuration file:
+  cd /etc/mysql/mysql.conf.d
+  nano mysqld.cnf
+
+##### PRIMARY SERVER
+Edit the cnf file and add the below configurations:
+  server-id = 1		                                        # Unique ID for the master
+  log_bin =  /home/intres-db-admin/binlogs/mysql-bin.log 	# Enable binary logging
+  binlog_format = ROW 		                                # Or MIXED or STATEMENT
+  bind-address = 0.0.0.0		                              # Can be accessed remotely
+
+##### DR SERVER
+Edit the cnf file and add the below configurations:
+  server-id = 2		                                        # Unique ID for the master
+  skip-log-bin			                                      # Disable binlogging
+  read-only = 1			                                      # DB set to read-only, no write transactions
+  bind-address = 0.0.0.0		                              # Can be accessed remotely
+
+## Important: restart MySQL instances to apply above configuration
+  sudo systemctl restart mysql
+
+## After applying the changes on server side, go to their respective mysql instances via MySQL workbench:
+
+##### PRIMARY SERVER
+## Get the binlog_file and position – this will be applied to the DR
+  FLUSH TABLES WITH READ LOCK; -- this will lock the binlog files and tables to avoid generating new ones
+  SHOW MASTER STATUS; -- shows the last position of binlog files
+
+## Backup/Restore of DB process in Primary instance after locking the tables before going to DR instance to setup replication. The DBs SHOULD HAVE exact data for replication to work.
+
+##### DR SERVER
+## this is done via logging in directly in linux
+  Mysql -u <username> -p <password prompt>
+
+# Input this piece of script to configure DR for replication
+## MASTER_HOST     = Primary MySQL Instance
+## MASTER_USER     = replication user account (needs to be created with exact credentials with replication slave and client permissions on both Primary and DR instance)
+## MASTER_LOG_FILE = Location of primary binlog files (usually in default location) and also the log file name is from the output of SHOW MASTER STATUS
+## MASTER_LOG_POS  = From the output on SHOW MASTER STATUS
+
+  CHANGE MASTER TO
+  MASTER_HOST = '',
+  MASTER_USER = '',
+  MASTER_PASSWORD = '',
+  MASTER_LOG_FILE = '',
+  MASTER_LOG_POS = 76455118,
+  MASTER_PORT = 3306;
+
+#Start replication (While still logged in the DR MySQL Instance)
+  START SLAVE;
+
+#Optional commands  (While still logged in the DR MySQL Instance)
+  STOP SLAVE;                                                              – Use this to stop replication
+  RESET SLAVE                                                              – Use this to reset replication (this will reset the applied changes to instance above)
+  SHOW SLAVE STATUS \G;                                                    - Check status of replication
+  SELECT * FROM performance_schema.replication_applier_status_by_worker;   – Actual error logs can be viewed here
+  SET GLOBAL sql_slave_skip_counter = 1                                    – After manually updating the DR database / tables, BEFORE RUNNING the replication again, Set this to skip the problematic logs and start replication moving forward, 
+                                                                             this is being done IF AFTER you applied the fix and still starting replication is not working. 
+
+
+## Note: If the replication values from the above are not the same, there is a problem in replication and needs to be checked. MySQL Replication is known for having problems with DDL statements, 
+## when there are any schema changes particularly with errors (duplicate columns, rename, etc..) it will break. It SHOULD BE CLOSELY MONITORED and immediately fix the issue:
+
+## Common issue encountered on why the replication has stopped:
+  a) Server restart
+  b) MySQL Service restart
+
