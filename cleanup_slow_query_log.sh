@@ -48,4 +48,4 @@ echo "Old logs older than 5 days have been removed."
 
 ## Open crontab -e ##
 #Schedule this job to run depending on your requirements
-0 7 * * * /home/intres-db-admin/cleanup_slow_log.sh > /home/db_dallas/backupDBDallas/cleanup_slow_log.log 2>&1
+0 7 * * * /<script location>/cleanup_slow_log.sh > /<log path location>/cleanup_slow_log.log 2>&1
