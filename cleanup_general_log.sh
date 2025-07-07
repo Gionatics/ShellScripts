@@ -40,4 +40,4 @@ echo "Old log files older than 5 days have been removed."
 
 ## Open crontab -e ##
 #Schedule this job to run depending on your requirements
-0 6 * * * <Script path> > <Destination Log Path>/cleanup_general_log.log 2>&1
+0 6 * * * /<Script path>/cleanup_general_log.sh > /<Destination Log Path>/cleanup_general_log.log 2>&1
