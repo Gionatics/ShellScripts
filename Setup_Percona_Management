@@ -1,0 +1,80 @@
+## PERCONA MANAGEMENT MONITORING is a free open source tool for monitoring performance and health of each MySQL instances and Servers
+## Setup in Ubuntu Linux
+## PMM-Server is setup inside docker container (containerized)
+## PMM-client is configured for each servers that needs to be added in monitoring
+## PMM-server and client SHOULD BE THE SAME version for it to work.
+## Must have root access / super user
+## The servers setup here are joined in internal network
+
+#### Percona Server
+  sudo apt update
+  sudo apt install -y docker.io
+  sudo systemctl enable docker
+  sudo systemctl start docker
+  
+  docker pull percona/pmm-server:latest
+  
+  docker create \
+    --name pmm-server \
+    --network host \
+    -v /srv:/srv \
+    -v /etc/localtime:/etc/localtime:ro \
+    percona/pmm-server:latest
+  
+  docker start pmm-server
+
+  ## useful commands:
+    docker ps - check status of docker container
+    docker logs <container id> - check docker logs, for troubleshooting purposes. Can get container ID from docker ps
+    docker stop pmm-server - stop container
+    docker restart pmm-server - restart container
+    docker rm pmm-server - remove container
+    netstat -tulnp - check the pot where the host IP is listening
+    ip addr - check IP address of host
+
+  # Setup container service restart-policy:
+    docker update --restart=unless-stopped <container id>
+    docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' <container id> unless-stopped
+
+#### Percona Client
+  wget https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+  sudo dpkg -i percona-release_latest.generic_all.deb
+  sudo percona-release enable pmm3-client
+  sudo apt update
+  sudo apt install -y pmm-client
+
+  sudo pmm-admin config --server-insecure-tls --server-url=https://admin:<password>@<percona server IP>:8443
+  
+  sudo pmm-admin add mysql \
+  --username <username> \
+  --password <password> \
+  --host <hostname / host IP> \
+  --port <instance port> \
+  --service-name <name to display in Percona> \
+  --query-source=perfschema
+
+## useful commands:
+  pmm-admin version - check client version
+  pmm-admin list - list of services running in pmm-client
+
+#################
+# If there is a scenario wherein the pmm-client or server needs to be downgraded due to version mismatch caused by automatic updates, here are the steps:
+  apt-cache madison pmm-client
+
+# Now choose the version you want to downgrade it with, in this case version 3.1.0. Run the below command:
+	apt install pmm-client=3.1.0-7.focal
+
+# To permanently exclude the auto update of pmm-client / server versions, set it up in the configuration per server:
+  apt-mark hold pmm-client
+
+# For the PMM-SERVER (different method because it is running inside a docker container)
+# This command will show you the latest config in the docker:
+
+  docker inspect --format='{{.Config.Image}}' pmm-server
+
+# This command then creates a tag in docker to use the version you set, on this scenario it will be 3.1.0
+	docker tag percona/pmm-server:latest percona/pmm-server:3.1.0
+
+# Verify if the tag is now added
+  docker images | grep pmm-server
+  
