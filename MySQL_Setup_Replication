@@ -12,7 +12,7 @@
 ##### PRIMARY SERVER
 Edit the cnf file and add the below configurations:
   server-id = 1		                                        # Unique ID for the master
-  log_bin =  /home/intres-db-admin/binlogs/mysql-bin.log 	# Enable binary logging
+  log_bin =  /<destination path>/binlogs/mysql-bin.log 	# Enable binary logging
   binlog_format = ROW 		                                # Or MIXED or STATEMENT
   bind-address = 0.0.0.0		                              # Can be accessed remotely
 
